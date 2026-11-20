@@ -220,7 +220,6 @@ fun TvSettingsScreen(
         onFocused = { blurb = "Where BitChord finds songs: addons for Hi-Res and lossless audio." },
         onClick = { sheet = SettingsSheet.Sources },
     )
-}
 
             }
             item {
