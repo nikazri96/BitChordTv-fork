@@ -44,16 +44,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.session.MediaController
 import com.music.bitchord.data.LikeState
+import com.music.bitchord.data.NerdStats
 import com.music.bitchord.data.YtMusicRepository
 import com.music.bitchord.data.model.BrowseType
 import com.music.bitchord.data.model.LikeStatus
 import com.music.bitchord.data.model.PlaylistPrivacy
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.playback.AudioCache
+import com.music.bitchord.playback.OriginalVersion
+import com.music.bitchord.playback.QualityUpgrade
 import com.music.bitchord.playback.SleepTimer
 import com.music.bitchord.playback.beginRadioQueue
 import com.music.bitchord.playback.commitRadioQueue
 import com.music.bitchord.playback.playSongs
+import com.music.bitchord.playback.upgradeQuality
 import com.music.bitchord.playback.toMediaItem
 import com.music.bitchord.ui.MainViewModel
 import com.music.bitchord.ui.tv.components.TvActivityIndicator
@@ -119,6 +124,16 @@ fun TvSongActionMenuDialog(
     val sleepDeadline by SleepTimer.deadline.collectAsState()
     val sleepAfterTrack by SleepTimer.afterTrack.collectAsState()
     val nerdStats by AppSettings.showNerdStats.collectAsState()
+    val pinnedToOriginal by OriginalVersion.pinned.collectAsState()
+    val upgradesInFlight by NerdStats.racingLossless.collectAsState()
+
+    // The phone's rule for offering "Upgrade quality": this is the track playing
+    // now, it is a stream (not a saved file), and what is coming out is YouTube's
+    // own copy, or a copy the listener sent back to it.
+    val canUpgrade = mediaController?.currentMediaItem?.mediaId == song.videoId &&
+        song.localUri == null &&
+        (song.videoId in pinnedToOriginal || mediaController.playingYouTubesOwn(song.videoId))
+    val upgrading = song.videoId in upgradesInFlight
 
     when (sheet) {
         SongSheet.Playlist -> {
@@ -171,6 +186,19 @@ fun TvSongActionMenuDialog(
                         onDismiss()
                     },
                 )
+            }
+            if (canUpgrade) {
+                item {
+                    TvListRow(
+                        title = if (upgrading) "Upgrading Quality…" else "Upgrade Quality",
+                        subtitle = "Look for a Hi-Res or lossless copy from your sources.",
+                        enabled = !upgrading,
+                        onClick = {
+                            mediaController?.upgradeQuality()
+                            onDismiss()
+                        },
+                    )
+                }
             }
             item {
                 TvListRow(
@@ -252,6 +280,17 @@ fun TvSongActionMenuDialog(
 }
 
 private enum class SongSheet { Actions, Playlist, Sleep, Equalizer }
+
+/** Whether [videoId] is the track playing and what is playing is YouTube's own copy; the phone's `playingYouTubesOwn`. */
+private fun MediaController?.playingYouTubesOwn(videoId: String): Boolean {
+    val item = this?.currentMediaItem?.takeIf { it.mediaId == videoId } ?: return false
+    val uri = item.localConfiguration?.uri
+    return QualityUpgrade.isKnownToBePlayingYouTubesOwn(
+        videoId,
+        uri?.let(QualityUpgrade::cacheTag),
+        uri?.let(AudioCache::originOf),
+    )
+}
 
 /**
  * A station seeded from [song], as the phone builds one: YouTube's radio for
