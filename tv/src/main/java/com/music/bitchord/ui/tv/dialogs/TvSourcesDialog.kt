@@ -1,5 +1,6 @@
 package com.music.bitchord.ui.tv.dialogs
 
+import android.view.KeyEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -16,6 +17,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -44,7 +48,11 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun TvSourcesDialog(onDismiss: () -> Unit) {
-    val configs by SourceRegistry.configs.collectAsState()
+    val stored by SourceRegistry.configs.collectAsState()
+    // Addons first, in the order the user set (the order they are asked in), then
+    // the built-in sources, whose place their kind decides. The sort is stable.
+    val configs = remember(stored) { stored.sortedBy { it.kind.rank } }
+    val addonIds = remember(configs) { configs.filter { it.kind.isUserAdded }.map { it.id } }
     var opened by remember { mutableStateOf<String?>(null) }
     var adding by remember { mutableStateOf(false) }
 
@@ -55,7 +63,7 @@ fun TvSourcesDialog(onDismiss: () -> Unit) {
         target != null -> TvSourceDetailDialog(config = target, onDismiss = { opened = null })
         else -> TvDialog(
             title = "Sources",
-            message = "Where BitChord looks for each song, in this order. Select a source to turn it on or off, or to pick its audio quality.",
+            message = "Where BitChord looks for each song, in this order. Press Left or Right on an addon to move it up or down; the first is asked first. Select a source to turn it on or off, or to pick its audio quality.",
             width = 560.dp,
             onDismissRequest = onDismiss,
         ) {
@@ -64,11 +72,34 @@ fun TvSourcesDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 items(configs, key = { it.id }) { config ->
+                    val position = addonIds.indexOf(config.id)
                     TvListRow(
                         title = config.displayName,
                         subtitle = sourceSubtitle(config),
-                        value = if (config.enabled) "On" else "Off",
-                        modifier = Modifier.tvInitialFocus(enabled = config.id == configs.firstOrNull()?.id),
+                        value = listOfNotNull(
+                            "${position + 1}".takeIf { position >= 0 },
+                            if (config.enabled) "On" else "Off",
+                        ).joinToString(" · "),
+                        modifier = Modifier
+                            .tvInitialFocus(enabled = config.id == configs.firstOrNull()?.id)
+                            .onKeyEvent { event ->
+                                // Only addons can be moved: the built-in sources keep
+                                // the place their kind gives them.
+                                if (position < 0 || event.type != KeyEventType.KeyDown) {
+                                    return@onKeyEvent false
+                                }
+                                val moveTo = when (event.nativeKeyEvent.keyCode) {
+                                    KeyEvent.KEYCODE_DPAD_LEFT -> position - 1
+                                    KeyEvent.KEYCODE_DPAD_RIGHT -> position + 1
+                                    else -> return@onKeyEvent false
+                                }
+                                if (moveTo in addonIds.indices) {
+                                    SourceRegistry.reorderAddons(
+                                        addonIds.toMutableList().apply { add(moveTo, removeAt(position)) },
+                                    )
+                                }
+                                true
+                            },
                         onClick = { opened = config.id },
                     )
                 }

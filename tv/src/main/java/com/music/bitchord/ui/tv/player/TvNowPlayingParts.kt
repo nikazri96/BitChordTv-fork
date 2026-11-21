@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -330,6 +331,9 @@ internal fun TvTransport(
     onScrub: (Long) -> Unit,
     onSelectOnScrubber: () -> Unit,
     onOpenUpNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
     onToggleLike: () -> Unit,
     onToggleLyrics: () -> Unit,
     onToggleUpNext: () -> Unit,
@@ -362,6 +366,28 @@ internal fun TvTransport(
                 TvQualityLine(showStats = showStats, modifier = Modifier.padding(top = 6.dp))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+                // Previous, play/pause and next, on screen in the phone's own
+                // glyphs. The remote's media keys and left/right on the bare
+                // stage still work; these are for the transport itself.
+                TvTransportButton(
+                    painter = painterResource(Res.drawable.ic_player_previous),
+                    contentDescription = "Previous",
+                    onClick = onPrevious,
+                )
+                TvTransportButton(
+                    painter = painterResource(
+                        if (isPlaying) Res.drawable.ic_player_pause else Res.drawable.ic_player_play,
+                    ),
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    enabled = !isLoading,
+                    onClick = onPlayPause,
+                )
+                TvTransportButton(
+                    painter = painterResource(Res.drawable.ic_player_next),
+                    contentDescription = "Next",
+                    onClick = onNext,
+                )
+                Spacer(modifier = Modifier.width(11.dp))
                 TvTransportButton(
                     icon = if (isLiked) BitChordIcons.StarFilled else BitChordIcons.Star,
                     contentDescription = if (isLiked) "Unfavorite" else "Favorite",
@@ -415,9 +441,10 @@ internal fun TvTransport(
 /** A round glyph button on the transport; [active] keeps it lit while focus is elsewhere. */
 @Composable
 private fun TvTransportButton(
-    icon: ImageVector?,
+    icon: ImageVector? = null,
     contentDescription: String,
     onClick: () -> Unit,
+    painter: Painter? = null,
     active: Boolean = false,
     enabled: Boolean = true,
     size: androidx.compose.ui.unit.Dp = 37.dp,
@@ -434,7 +461,14 @@ private fun TvTransportButton(
             .tvClick(interaction, enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (icon != null) {
+        if (painter != null) {
+            Icon(
+                painter = painter,
+                contentDescription = contentDescription,
+                tint = if (focused) TvGlass.OnPlatter else TvGlass.TextPrimary,
+                modifier = Modifier.size(size * 0.46f),
+            )
+        } else if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,

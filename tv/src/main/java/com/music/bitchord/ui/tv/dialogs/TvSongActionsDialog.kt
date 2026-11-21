@@ -1,5 +1,6 @@
 package com.music.bitchord.ui.tv.dialogs
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -48,18 +50,23 @@ import com.music.bitchord.data.NerdStats
 import com.music.bitchord.data.YtMusicRepository
 import com.music.bitchord.data.model.BrowseType
 import com.music.bitchord.data.model.LikeStatus
+import com.music.bitchord.data.model.PlaybackSourceType
 import com.music.bitchord.data.model.PlaylistPrivacy
+import com.music.bitchord.data.model.QueueTier
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.AppSettings
 import com.music.bitchord.playback.AudioCache
 import com.music.bitchord.playback.OriginalVersion
 import com.music.bitchord.playback.QualityUpgrade
+import com.music.bitchord.playback.QueueCoordinator
+import com.music.bitchord.playback.QueueCoordinator.asQueueEntry
 import com.music.bitchord.playback.SleepTimer
 import com.music.bitchord.playback.beginRadioQueue
 import com.music.bitchord.playback.commitRadioQueue
 import com.music.bitchord.playback.playSongs
 import com.music.bitchord.playback.upgradeQuality
 import com.music.bitchord.playback.toMediaItem
+import com.music.bitchord.playback.toSong
 import com.music.bitchord.ui.MainViewModel
 import com.music.bitchord.ui.tv.components.TvActivityIndicator
 import com.music.bitchord.ui.tv.components.TvArtwork
@@ -124,6 +131,7 @@ fun TvSongActionMenuDialog(
     val sleepDeadline by SleepTimer.deadline.collectAsState()
     val sleepAfterTrack by SleepTimer.afterTrack.collectAsState()
     val nerdStats by AppSettings.showNerdStats.collectAsState()
+    val context = LocalContext.current
     val pinnedToOriginal by OriginalVersion.pinned.collectAsState()
     val upgradesInFlight by NerdStats.racingLossless.collectAsState()
 
@@ -172,7 +180,9 @@ fun TvSongActionMenuDialog(
                     trailingIcon = Icons.AutoMirrored.Rounded.QueueMusic,
                     modifier = Modifier.tvInitialFocus(),
                     onClick = {
-                        mediaController?.let { it.addMediaItem(it.currentMediaItemIndex + 1, song.toMediaItem()) }
+                        if (mediaController?.queueSong(song, next = true) == true) {
+                            Toast.makeText(context, "Will play next", Toast.LENGTH_SHORT).show()
+                        }
                         onDismiss()
                     },
                 )
@@ -182,7 +192,9 @@ fun TvSongActionMenuDialog(
                     title = "Play Last",
                     trailingIcon = Icons.Rounded.PlaylistPlay,
                     onClick = {
-                        mediaController?.addMediaItem(song.toMediaItem())
+                        if (mediaController?.queueSong(song, next = false) == true) {
+                            Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
+                        }
                         onDismiss()
                     },
                 )
@@ -280,6 +292,31 @@ fun TvSongActionMenuDialog(
 }
 
 private enum class SongSheet { Actions, Playlist, Sleep, Equalizer }
+
+/**
+ * Puts [song] in the queue the way the phone does: as a USER_QUEUE entry, "next"
+ * at the head of what the listener queued and "last" at its tail, ahead of the
+ * rest of the context and anything AutoPlay lined up. A bare insert at the end of
+ * the list, which this menu used to do, carries no tier, so AutoPlay and the queue
+ * pruning treat it as theirs and drop it. Returns whether it was added.
+ */
+private fun MediaController.queueSong(song: Song, next: Boolean): Boolean {
+    val current = currentMediaItem?.toSong()
+    val timeline = (0 until mediaItemCount).map { getMediaItemAt(it).toSong() }
+    val at = QueueCoordinator.findUserQueueInsertionIndex(
+        timeline = timeline,
+        currentIndex = currentMediaItemIndex,
+        isNext = next,
+    )
+    val queued = song.copy(
+        radioName = current?.radioName,
+        playbackSource = current?.playbackSource ?: "Queue",
+        playbackSourceType = current?.playbackSourceType ?: PlaybackSourceType.QUEUE,
+        playbackSourceId = current?.playbackSourceId,
+    ).asQueueEntry(QueueTier.USER_QUEUE)
+    addMediaItem(at, queued.toMediaItem())
+    return true
+}
 
 /** Whether [videoId] is the track playing and what is playing is YouTube's own copy; the phone's `playingYouTubesOwn`. */
 private fun MediaController?.playingYouTubesOwn(videoId: String): Boolean {

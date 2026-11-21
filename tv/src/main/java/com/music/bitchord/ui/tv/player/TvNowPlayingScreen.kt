@@ -278,6 +278,9 @@ fun TvNowPlayingScreen(
                     if (scrubTarget != null) commitScrub() else togglePlay()
                 },
                 onOpenUpNext = { upNextOpen = true },
+                onPrevious = skipPrevious,
+                onPlayPause = togglePlay,
+                onNext = skipNext,
                 onToggleLike = { viewModel.toggleLike(song.videoId) },
                 onToggleLyrics = { lyricsHidden = !lyricsHidden },
                 onToggleUpNext = { upNextOpen = !upNextOpen },
