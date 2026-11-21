@@ -62,6 +62,8 @@ import com.music.bitchord.playback.QueueCoordinator
 import com.music.bitchord.playback.QueueCoordinator.asQueueEntry
 import com.music.bitchord.playback.SleepTimer
 import com.music.bitchord.playback.beginRadioQueue
+import com.music.bitchord.playback.hasYouTubeOriginal
+import com.music.bitchord.playback.revertToOriginal
 import com.music.bitchord.playback.commitRadioQueue
 import com.music.bitchord.playback.playSongs
 import com.music.bitchord.playback.upgradeQuality
@@ -143,6 +145,15 @@ fun TvSongActionMenuDialog(
         (song.videoId in pinnedToOriginal || mediaController.playingYouTubesOwn(song.videoId))
     val upgrading = song.videoId in upgradesInFlight
 
+    // After an upgrade the phone's row turns into "Revert to Original" rather than
+    // vanishing: offered for the playing track when a copy other than YouTube's own
+    // is what is playing, and it has a YouTube upload to go back to.
+    val canRevert = mediaController?.currentMediaItem?.mediaId == song.videoId &&
+        song.localUri == null &&
+        song.hasYouTubeOriginal() &&
+        song.videoId !in pinnedToOriginal &&
+        !mediaController.playingYouTubesOwn(song.videoId)
+
     when (sheet) {
         SongSheet.Playlist -> {
             TvAddToPlaylistDialog(song = song, viewModel = viewModel, onDismiss = onDismiss)
@@ -199,7 +210,18 @@ fun TvSongActionMenuDialog(
                     },
                 )
             }
-            if (canUpgrade) {
+            if (canRevert) {
+                item {
+                    TvListRow(
+                        title = "Revert to Original",
+                        subtitle = "Go back to YouTube's own stream for this song.",
+                        onClick = {
+                            mediaController?.revertToOriginal()
+                            onDismiss()
+                        },
+                    )
+                }
+            } else if (canUpgrade) {
                 item {
                     TvListRow(
                         title = if (upgrading) "Upgrading Quality…" else "Upgrade Quality",

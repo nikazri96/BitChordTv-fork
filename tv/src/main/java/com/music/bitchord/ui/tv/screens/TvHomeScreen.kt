@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.media3.session.MediaController
+import com.music.bitchord.data.innertube.PlaybackTracker
 import com.music.bitchord.data.model.BrowseType
 import com.music.bitchord.data.model.HomeShelf
 import com.music.bitchord.data.model.ShelfItem
@@ -41,6 +42,7 @@ import com.music.bitchord.ui.tv.components.TvShelf
 import com.music.bitchord.ui.tv.components.TvShelfPlaceholder
 import com.music.bitchord.ui.tv.dialogs.TvSongMenu
 import com.music.bitchord.ui.tv.theme.TvDimensions
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -55,6 +57,17 @@ fun TvHomeScreen(
     val loadingMore by viewModel.homeLoadingMore.collectAsState()
     val scope = rememberCoroutineScope()
     var menuSong by remember { mutableStateOf<Song?>(null) }
+
+    // The lead shelf, Recents, is listening history, so Home needs it re-fetched
+    // after something has been played: when Home opens, and again whenever a play
+    // registers while it is still on screen (Now Playing opens over it). The phone
+    // does this from its tab; the view model only marks Home stale, and nothing
+    // on the TV ever asked it to refresh. The short wait lets that mark land first.
+    val registeredPlays by PlaybackTracker.registeredPlays.collectAsState()
+    LaunchedEffect(registeredPlays) {
+        delay(1_500)
+        viewModel.onHomeShown()
+    }
 
     when (val state = homeState) {
         is UiState.Loading -> TvShelvesLoading(modifier)
