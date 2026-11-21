@@ -110,6 +110,7 @@ fun TvApp(
     playerState: PlayerState,
     modifier: Modifier = Modifier,
 ) {
+    TvAutoLossless(mediaController)
     val setupVersionCompleted by TvSettings.tvSetupVersionCompleted.collectAsState()
     var isRunningSetup by remember(setupVersionCompleted) { mutableStateOf(setupVersionCompleted == 0) }
     var isNowPlayingOpen by remember { mutableStateOf(false) }
