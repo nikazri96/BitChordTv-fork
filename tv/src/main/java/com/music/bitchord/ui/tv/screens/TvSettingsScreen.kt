@@ -41,6 +41,7 @@ import com.music.bitchord.ui.tv.dialogs.TvEqualizerDialog
 import com.music.bitchord.ui.tv.dialogs.TvLyricsSourcesDialog
 import com.music.bitchord.ui.tv.dialogs.TvRefreshRateDialog
 import com.music.bitchord.ui.tv.dialogs.TvSourcesDialog
+import com.music.bitchord.ui.tv.dialogs.TvQualityDialog
 import com.music.bitchord.ui.tv.dialogs.TvScrobbleDialog
 import com.music.bitchord.data.settings.TvPlayerStyle
 import com.music.bitchord.ui.tv.dialogs.TvThemeDialog
@@ -52,7 +53,7 @@ import com.music.bitchord.ui.tv.theme.TvGlass
 import com.music.bitchord.ui.tv.theme.TvType
 
 // Discord Rich Presence is hidden on TV for now; TvDiscordDialog is kept for when it returns.
-private enum class SettingsSheet { Theme, RefreshRate, Equalizer, Scrobbling, LyricsSources, Sources, Update, About }
+private enum class SettingsSheet { Theme, RefreshRate, Equalizer, Scrobbling, LyricsSources, Sources, QualityWifi, QualityCellular, Update, About }
 
 private const val DefaultBlurb = "Playback, sound and display preferences for BitChord on this TV."
 
@@ -82,6 +83,8 @@ fun TvSettingsScreen(
     val usbDac by AppSettings.preferUsbDac.collectAsState()
     val syncedLyrics by AppSettings.syncedLyrics.collectAsState()
     val lyricsSources by AppSettings.lyricsSources.collectAsState()
+    val wifiQuality by AppSettings.audioQualityWifi.collectAsState()
+    val cellularQuality by AppSettings.audioQualityCellular.collectAsState()
     val canvas by AppSettings.animatedCanvas.collectAsState()
     val lyricsCanvas by TvSettings.tvLyricsCanvasEnabled.collectAsState()
     val nerdStats by AppSettings.showNerdStats.collectAsState()
@@ -220,6 +223,22 @@ fun TvSettingsScreen(
         onFocused = { blurb = "Where BitChord finds songs: addons for Hi-Res and lossless audio." },
         onClick = { sheet = SettingsSheet.Sources },
     )
+            }
+            item {
+                TvListRow(
+                    title = "Quality on Wi-Fi",
+                    value = wifiQuality.label,
+                    onFocused = { blurb = "Highest quality BitChord will stream on Wi-Fi or Ethernet." },
+                    onClick = { sheet = SettingsSheet.QualityWifi },
+                )
+            }
+            item {
+                TvListRow(
+                    title = "Quality on Mobile Data",
+                    value = cellularQuality.label,
+                    onFocused = { blurb = "Highest quality BitChord will stream on a metered connection." },
+                    onClick = { sheet = SettingsSheet.QualityCellular },
+                )
 
             }
             item {
@@ -375,6 +394,8 @@ fun TvSettingsScreen(
         SettingsSheet.Scrobbling -> TvScrobbleDialog(onDismiss = { sheet = null })
         SettingsSheet.LyricsSources -> TvLyricsSourcesDialog(onDismiss = { sheet = null })
         SettingsSheet.Sources -> TvSourcesDialog(onDismiss = { sheet = null })
+        SettingsSheet.QualityWifi -> TvQualityDialog(wifi = true, onDismiss = { sheet = null })
+        SettingsSheet.QualityCellular -> TvQualityDialog(wifi = false, onDismiss = { sheet = null })
         SettingsSheet.Update -> update?.let { TvUpdateDialog(update = it, onDismiss = { sheet = null }) }
         SettingsSheet.About -> TvAboutDialog(onDismiss = { sheet = null })
         null -> Unit

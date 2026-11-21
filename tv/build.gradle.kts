@@ -95,9 +95,9 @@ android {
             "LISTEN_TOGETHER_SERVER",
             "\"${listenTogetherServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
-        // TV has no addons; AddonAuth only reaches the compiler through the
-        // shared phone sources, so it gets no server.
-        buildConfigField("String", "ADDON_AUTH_URL", "\"\"")
+        // Same verification service the phone app uses, so addons can be asked
+        // on TV the way they are on the phone. The service decides who it trusts.
+        buildConfigField("String", "ADDON_AUTH_URL", "\"https://bitchord-auth.kushagrasingh.in\"")
         // The TV APKs share a GitHub release with the phone ones and are told
         // apart by name (BitChordTV-v1.8.apk, BitChordTV-v1.8_x86_64.apk), so
         // the updater installs the TV app here, never the phone app. See
@@ -109,8 +109,8 @@ android {
         abi {
             isEnable = true
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = true
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
         }
     }
 
