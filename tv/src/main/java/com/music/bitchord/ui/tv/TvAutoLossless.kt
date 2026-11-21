@@ -34,7 +34,7 @@ fun TvAutoLossless(mediaController: MediaController?) {
             val id = controller.currentMediaItem?.mediaId
             if (id != null && id != lastId) {
                 lastId = id
-                for (wait in longArrayOf(6_000, 15_000, 30_000)) {
+                for (wait in longArrayOf(1_500, 10_000, 25_000)) {
                     delay(wait)
                     if (controller.currentMediaItem?.mediaId != id) break
                     if (id in NerdStats.racingLossless.value) continue
