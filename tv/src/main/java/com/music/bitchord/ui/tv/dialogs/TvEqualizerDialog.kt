@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.data.settings.EqualizerMode
 import com.music.bitchord.playback.EqLayout
 import com.music.bitchord.playback.EqualizerPreset
 import com.music.bitchord.ui.tv.components.TvButton
@@ -97,6 +99,16 @@ fun TvEqualizerDialog(
     val currentPreset by AppSettings.equalizerPreset.collectAsState()
     val bands by AppSettings.equalizerBands.collectAsState()
     var tab by remember { mutableStateOf(EqTab.BANDS) }
+
+    // The phone only ever edits bands/presets from its Manual tab, and
+    // switching to it is what sets this — so it never has to repeat the
+    // thought here. Nothing on TV flips the mode that way, so the mode could
+    // sit on Dynamic forever: the bands below would keep saving correctly and
+    // never be the curve actually played. Set once, up front, so opening this
+    // sheet at all is enough — editing a band is not required.
+    LaunchedEffect(Unit) {
+        AppSettings.setEqualizerMode(EqualizerMode.MANUAL)
+    }
 
     val presets: List<Pair<EqualizerPreset, String>> = remember {
         listOf(
